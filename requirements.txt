@@ -6,3 +6,4 @@ streamlit==1.45.1
 openpyxl>=3.1
 jupyter>=1.0
 ipykernel>=6.0
+altair==5.4.1
