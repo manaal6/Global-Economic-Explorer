@@ -431,10 +431,10 @@ def main() -> None:
 
         quality = pd.DataFrame(
             [
-                {"Check": "Full duplicate rows", "Result": profile["full_duplicates"]},
-                {"Check": "Numeric parse failures in year columns", "Result": profile["numeric_parse_failures"]},
-                {"Check": "Long-format valid observations", "Result": profile["valid_observations"]},
-                {"Check": "Metadata columns preserved", "Result": profile["metadata_columns"]},
+                {"Check": "Full duplicate rows", "Result": str(profile["full_duplicates"])},
+                {"Check": "Numeric parse failures in year columns", "Result": str(profile["numeric_parse_failures"])},
+                {"Check": "Long-format valid observations", "Result": f"{profile['valid_observations']:,}"},
+                {"Check": "Metadata columns preserved", "Result": str(profile["metadata_columns"])},
                 {"Check": "Time-series coverage", "Result": f"{profile['year_min']} to {profile['year_max']}"},
             ]
         )
