@@ -378,7 +378,17 @@ def main() -> None:
             year_type_summary.columns.name = None
             y_cols = [c for c in ["Historical", "Forecast"] if c in year_type_summary.columns]
             if y_cols:
-                st.line_chart(year_type_summary.set_index("Year")[y_cols])
+                import matplotlib.pyplot as plt
+                fig_fc, ax_fc = plt.subplots(figsize=(8, 3.5))
+                for col in y_cols:
+                    ax_fc.plot(year_type_summary["Year"], year_type_summary[col], label=col, marker="o", markersize=3)
+                ax_fc.set_xlabel("Year")
+                ax_fc.set_ylabel("Average Value")
+                ax_fc.legend()
+                ax_fc.grid(True, alpha=0.3)
+                plt.tight_layout()
+                st.pyplot(fig_fc, use_container_width=True)
+                plt.close(fig_fc)
             else:
                 st.info("No historical/forecast data available for current selection.")
 
