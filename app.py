@@ -368,14 +368,18 @@ def main() -> None:
         )
         adv_left, adv_right = st.columns([1.1, 1])
         with adv_left:
-            st.markdown("#### Forecast vs Historical View")
-            year_type_summary = (
-                filtered_df.groupby(["Year", "Year Type"], as_index=False)["Value"]
-                .mean()
-                .pivot(index="Year", columns="Year Type", values="Value")
-                .reset_index()
-            )
-            st.line_chart(year_type_summary, x="Year", y=[column for column in ["Historical", "Forecast"] if column in year_type_summary.columns])
+            st.markdown("#### Forecast vs Historical View")year_type_summary = (
+    filtered_df.groupby(["Year", "Year Type"], as_index=False)["Value"]
+    .mean()
+    .pivot(index="Year", columns="Year Type", values="Value")
+    .reset_index()
+)
+year_type_summary.columns.name = None
+y_cols = [c for c in ["Historical", "Forecast"] if c in year_type_summary.columns]
+if y_cols:
+    st.line_chart(year_type_summary.set_index("Year")[y_cols])
+else:
+    st.info("No historical/forecast data available for current selection.")
 
             st.markdown("#### Economic Trend Comparison")
             st.pyplot(trend_line(filtered_df, selected_indicator), use_container_width=True)
