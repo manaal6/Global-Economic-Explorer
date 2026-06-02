@@ -10,7 +10,7 @@ _MPLCONFIGDIR.mkdir(exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(_MPLCONFIGDIR))
 
 import matplotlib
-
+matplotlib.rcParams["figure.max_open_warning"] = 0
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,7 +62,10 @@ def _finalize(ax: plt.Axes, title: str, xlabel: str = "", ylabel: str = "") -> p
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig = ax.figure
-    fig.tight_layout()
+    try:
+        fig.tight_layout()
+    except Exception:
+        pass
     return fig
 
 
@@ -70,7 +73,10 @@ def empty_figure(message: str) -> plt.Figure:
     fig, ax = plt.subplots(figsize=(8, 4.5))
     ax.text(0.5, 0.5, message, ha="center", va="center", fontsize=12, color="#475569")
     ax.axis("off")
-    fig.tight_layout()
+    try:
+        fig.tight_layout()
+    except Exception:
+        pass
     return fig
 
 
@@ -107,7 +113,10 @@ def indicator_category_pie(df: pd.DataFrame) -> plt.Figure:
         textprops={"fontsize": 9, "color": TEXT},
     )
     ax.set_title("Indicator Category Distribution", loc="left", fontsize=13, fontweight="bold", pad=10)
-    fig.tight_layout()
+    try:
+        fig.tight_layout()
+    except Exception:
+        pass
     return fig
 
 
@@ -268,7 +277,10 @@ def correlation_heatmap(df: pd.DataFrame, selected_indicators: Iterable[str] | N
     ax.set_title("Country-Indicator Correlation Matrix", loc="left", fontsize=13, fontweight="bold", pad=12)
     ax.tick_params(axis="x", labelrotation=45)
     ax.tick_params(axis="y", labelrotation=0)
-    fig.tight_layout()
+    try:
+        fig.tight_layout()
+    except Exception:
+        pass
     return fig
 
 
