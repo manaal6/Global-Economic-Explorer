@@ -294,6 +294,7 @@ def main() -> None:
         left, right = st.columns([1.45, 1])
         with left:
             st.pyplot(trend_line(filtered_df, selected_indicator), use_container_width=True)
+            plt.close("all")
         with right:
             ranking = ranking_table(context_df, selected_indicator, selected_year, top_n, include_aggregates)
             st.markdown("#### Global Country Ranking Table")
@@ -324,14 +325,18 @@ def main() -> None:
         chart_a, chart_b = st.columns(2)
         with chart_a:
             st.pyplot(indicator_category_pie(context_df), use_container_width=True)
+            plt.close("all")
         with chart_b:
             st.pyplot(indicator_histogram(filtered_df, selected_indicator), use_container_width=True)
+            plt.close("all")
 
         chart_c, chart_d = st.columns(2)
         with chart_c:
             st.pyplot(trend_line(filtered_df, selected_indicator), use_container_width=True)
+            plt.close("all")
         with chart_d:
             st.pyplot(ranking_bar(context_df, selected_indicator, selected_year, top_n, include_aggregates), use_container_width=True)
+            plt.close("all")
 
         scatter_pairs = choose_scatter_pairs(context_df["Indicator"].dropna().unique())
         scatter_choice = st.radio(
@@ -349,16 +354,21 @@ def main() -> None:
         chart_e, chart_f = st.columns(2)
         with chart_e:
             st.pyplot(box_plot_by_topic(context_df), use_container_width=True)
+            plt.close("all")
         with chart_f:
             st.pyplot(correlation_heatmap(context_df), use_container_width=True)
+            plt.close("all")
 
         chart_g, chart_h = st.columns(2)
         with chart_g:
             st.pyplot(area_chart(filtered_df, selected_indicator), use_container_width=True)
+            plt.close("all")
         with chart_h:
             st.pyplot(count_plot(context_df), use_container_width=True)
+            plt.close("all")
 
         st.pyplot(violin_plot(filtered_df, selected_indicator), use_container_width=True)
+        plt.close("all")
 
     with advanced_tab:
         st.subheader("Advanced Data Scientist Features")
@@ -388,12 +398,14 @@ def main() -> None:
                 ax_fc.grid(True, alpha=0.3)
                 plt.tight_layout()
                 st.pyplot(fig_fc, use_container_width=True)
+                plt.close("all")
                 plt.close(fig_fc)
             else:
                 st.info("No historical/forecast data available for current selection.")
 
             st.markdown("#### Economic Trend Comparison")
             st.pyplot(trend_line(filtered_df, selected_indicator), use_container_width=True)
+            plt.close("all")
 
         with adv_right:
             st.markdown("#### Anomaly Detector")
@@ -413,6 +425,7 @@ def main() -> None:
                 default=all_indicators[: min(6, len(all_indicators))],
             )
             st.pyplot(correlation_heatmap(context_df, selected_corr), use_container_width=True)
+            plt.close("all")
 
     with data_tab:
         st.subheader("Dataset Engineering Profile")
@@ -431,10 +444,10 @@ def main() -> None:
 
         quality = pd.DataFrame(
             [
-                {"Check": "Full duplicate rows", "Result": str(profile["full_duplicates"])},
-                {"Check": "Numeric parse failures in year columns", "Result": str(profile["numeric_parse_failures"])},
-                {"Check": "Long-format valid observations", "Result": f"{profile['valid_observations']:,}"},
-                {"Check": "Metadata columns preserved", "Result": str(profile["metadata_columns"])},
+                {"Check": "Full duplicate rows", "Result": profile["full_duplicates"]},
+                {"Check": "Numeric parse failures in year columns", "Result": profile["numeric_parse_failures"]},
+                {"Check": "Long-format valid observations", "Result": profile["valid_observations"]},
+                {"Check": "Metadata columns preserved", "Result": profile["metadata_columns"]},
                 {"Check": "Time-series coverage", "Result": f"{profile['year_min']} to {profile['year_max']}"},
             ]
         )

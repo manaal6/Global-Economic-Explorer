@@ -10,7 +10,7 @@ _MPLCONFIGDIR.mkdir(exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(_MPLCONFIGDIR))
 
 import matplotlib
-matplotlib.rcParams["figure.max_open_warning"] = 0
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
