@@ -1,0 +1,13 @@
+2026-06-06 13:53:01.393 Uvicorn server started on 0.0.0.0:8501
+C:\Users\HP\Documents\Exploratory Data Analysis Dashboard\dashboard_project\charts.py:66: UserWarning: Tight layout not applied. The bottom and top margins cannot be made large enough to accommodate all Axes decorations.
+  fig.tight_layout()
+2026-06-06 13:55:21.321 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-06-06 13:55:30.824 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.

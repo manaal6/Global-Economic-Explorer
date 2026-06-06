@@ -88,7 +88,7 @@ def _series_count_frame(df: pd.DataFrame, group_col: str) -> pd.DataFrame:
     series_col = "Series Code" if "Series Code" in df.columns else "Indicator"
     return (
         df.drop_duplicates(subset=[series_col])
-        .groupby(group_col, dropna=False)[series_col]
+        .groupby(group_col, observed=True, dropna=False)[series_col]
         .count()
         .reset_index(name="Count")
         .sort_values("Count", ascending=False)
@@ -136,7 +136,7 @@ def trend_line(df: pd.DataFrame, indicator: str) -> plt.Figure:
         return empty_figure("No time-series data available for the selected trend.")
 
     grouped = (
-        data.groupby(["Year", "Country", "Year Type"], as_index=False)["Value"]
+        data.groupby(["Year", "Country", "Year Type"], observed=True, as_index=False)["Value"]
         .mean()
         .sort_values("Year")
     )
@@ -215,7 +215,7 @@ def scatter_economics(
     if data.empty:
         return empty_figure("No paired values available for the selected year.")
 
-    pivot = data.pivot_table(index="Country", columns="Indicator", values="Value", aggfunc="mean")
+    pivot = data.pivot_table(index="Country", columns="Indicator", values="Value", aggfunc="mean", observed=True)
     pivot = pivot.dropna(subset=[x_indicator, y_indicator]).reset_index()
     if pivot.empty:
         return empty_figure("The selected indicators do not overlap for this year.")
@@ -256,7 +256,7 @@ def correlation_heatmap(df: pd.DataFrame, selected_indicators: Iterable[str] | N
         top = data["Indicator"].value_counts().head(10).index
         data = data[data["Indicator"].isin(top)]
 
-    pivot = data.pivot_table(index=["Country", "Year"], columns="Indicator", values="Value", aggfunc="mean")
+    pivot = data.pivot_table(index=["Country", "Year"], columns="Indicator", values="Value", aggfunc="mean", observed=True)
     pivot = pivot.dropna(axis=1, thresh=max(5, int(len(pivot) * 0.08)))
     if pivot.shape[1] < 2:
         return empty_figure("Select at least two indicators with overlapping country-year values.")
@@ -297,14 +297,22 @@ def area_chart(df: pd.DataFrame, indicator: str) -> plt.Figure:
         .tolist()
     )
     data = data[data["Country"].isin(top_countries)]
-    pivot = data.pivot_table(index="Year", columns="Country", values="Value", aggfunc="mean").sort_index()
+    pivot = data.pivot_table(index="Year", columns="Country", values="Value", aggfunc="mean", observed=True).sort_index()
     if pivot.empty:
         return empty_figure("No cumulative trend data available.")
 
     fig, ax = plt.subplots(figsize=(10, 5.2))
-    pivot.plot.area(ax=ax, color=sns.color_palette(PALETTE, n_colors=pivot.shape[1]), alpha=0.82, linewidth=0.5)
+    has_negatives = (pivot < 0).any().any()
+    pivot.plot.area(
+        ax=ax,
+        color=sns.color_palette(PALETTE, n_colors=pivot.shape[1]),
+        alpha=0.82,
+        linewidth=0.5,
+        stacked=not has_negatives,
+    )
     ax.legend(loc="best", fontsize=8, frameon=True)
-    return _finalize(ax, f"Cumulative Economic Trend: {indicator}", "Year", "Value")
+    title = f"Economic Trend: {indicator}" if has_negatives else f"Cumulative Economic Trend: {indicator}"
+    return _finalize(ax, title, "Year", "Value")
 
 
 def count_plot(df: pd.DataFrame) -> plt.Figure:
@@ -331,8 +339,8 @@ def anomaly_detector(df: pd.DataFrame, indicator: str, limit: int = 15) -> pd.Da
     if data.empty:
         return pd.DataFrame()
 
-    median = data.groupby("Year")["Value"].transform("median")
-    mad = data.groupby("Year")["Value"].transform(lambda values: np.median(np.abs(values - np.median(values))))
+    median = data.groupby("Year", observed=True)["Value"].transform("median")
+    mad = data["Value"].sub(median).abs().groupby(data["Year"]).transform("median")
     robust_z = 0.6745 * (data["Value"] - median) / mad.replace(0, np.nan)
     data["Robust Z-Score"] = robust_z.replace([np.inf, -np.inf], np.nan)
     anomalies = data[data["Robust Z-Score"].abs() >= 3.5].copy()
@@ -416,7 +424,7 @@ def generate_insights(
             f"with a value of {leader['Value']:,.2f}."
         )
 
-    trend = data.pivot_table(index="Country", columns="Year", values="Value", aggfunc="mean")
+    trend = data.pivot_table(index="Country", columns="Year", values="Value", aggfunc="mean", observed=True)
     if trend.shape[1] >= 2:
         first_year = int(trend.columns.min())
         last_year = int(trend.columns.max())

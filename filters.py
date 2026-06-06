@@ -85,7 +85,12 @@ def clean_wide_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     cleaned = df.copy()
     cleaned.columns = [str(column).strip() for column in cleaned.columns]
 
-    text_columns = cleaned.select_dtypes(include=["object"]).columns
+    year_columns = set(detect_year_columns(cleaned.columns))
+    text_columns = [
+        column
+        for column in cleaned.select_dtypes(include=["object"]).columns
+        if column not in year_columns
+    ]
     for column in text_columns:
         cleaned[column] = (
             cleaned[column]
@@ -164,10 +169,24 @@ def build_long_dataframe(df: pd.DataFrame, year_columns: list[str] | None = None
     long_df["Is Valid Value"] = long_df["Value"].notna()
     long_df["Is Aggregate"] = long_df["Country"].isin(AGGREGATE_LABELS) if "Country" in long_df else False
 
+    category_columns = [
+        "Country",
+        "Indicator",
+        "Topic",
+        "Scale",
+        "Unit",
+        "Series Code",
+        "Year Type",
+    ]
+    for column in category_columns:
+        if column in long_df.columns:
+            long_df[column] = long_df[column].astype("category")
+    long_df["Year"] = long_df["Year"].astype("Int16")
+
     return long_df
 
 
-@st.cache_data(show_spinner="Loading and transforming IMF WEO data...")
+@st.cache_resource(show_spinner="Loading and transforming IMF WEO data...")
 def load_data(data_dir: str = "data") -> DataBundle:
     dataset_path = find_dataset_file(data_dir)
     raw = read_dataset(dataset_path)
@@ -187,7 +206,9 @@ def load_data(data_dir: str = "data") -> DataBundle:
 
 def profile_dataset(bundle: DataBundle) -> dict[str, object]:
     """Generate reusable quality diagnostics for the app and notebook."""
-    year_values = bundle.wide[bundle.year_columns].apply(parse_numeric)
+    total_year_cells = int(bundle.raw.shape[0] * len(bundle.year_columns))
+    valid_observations = int(bundle.long["Value"].notna().sum())
+    non_missing_year_values = int(bundle.long["Raw_Value"].notna().sum())
     return {
         "file_name": bundle.path.name,
         "rows": int(bundle.raw.shape[0]),
@@ -200,12 +221,9 @@ def profile_dataset(bundle: DataBundle) -> dict[str, object]:
         "indicators": int(bundle.wide["INDICATOR"].nunique(dropna=True)),
         "topics": int(bundle.wide["TOPIC"].nunique(dropna=True)),
         "full_duplicates": int(bundle.wide.duplicated().sum()),
-        "valid_observations": int(bundle.long["Value"].notna().sum()),
-        "missing_year_value_pct": float((1 - year_values.notna().sum().sum() / year_values.size) * 100),
-        "numeric_parse_failures": int(
-            bundle.wide[bundle.year_columns].notna().sum().sum()
-            - year_values.notna().sum().sum()
-        ),
+        "valid_observations": valid_observations,
+        "missing_year_value_pct": float((1 - valid_observations / total_year_cells) * 100),
+        "numeric_parse_failures": int(non_missing_year_values - valid_observations),
     }
 
 
@@ -231,7 +249,7 @@ def reset_filter_state() -> None:
 
 def render_sidebar_filters(long_df: pd.DataFrame) -> dict[str, object]:
     """Render global Streamlit controls and return the selected filter state."""
-    valid = long_df.dropna(subset=["Value"])
+    valid = long_df[long_df["Value"].notna()]
     available_years = sorted(valid["Year"].dropna().astype(int).unique().tolist())
     min_year, max_year = min(available_years), max(available_years)
     default_start = max(min_year, 2000)
@@ -257,7 +275,7 @@ def render_sidebar_filters(long_df: pd.DataFrame) -> dict[str, object]:
             key="topics",
         )
 
-        topic_filtered = valid.copy()
+        topic_filtered = valid
         if topics:
             topic_filtered = topic_filtered[topic_filtered["Topic"].isin(topics)]
 
@@ -268,7 +286,7 @@ def render_sidebar_filters(long_df: pd.DataFrame) -> dict[str, object]:
             key="scales",
         )
 
-        scale_filtered = topic_filtered.copy()
+        scale_filtered = topic_filtered
         if scales:
             scale_filtered = scale_filtered[scale_filtered["Scale"].isin(scales)]
 
@@ -343,40 +361,38 @@ def render_sidebar_filters(long_df: pd.DataFrame) -> dict[str, object]:
 
 
 def apply_global_filters(long_df: pd.DataFrame, filters: dict[str, object]) -> pd.DataFrame:
-    filtered = long_df.copy()
-
     year_start, year_end = filters["year_range"]
-    filtered = filtered[filtered["Year"].between(year_start, year_end)]
+    mask = long_df["Year"].between(year_start, year_end) & long_df["Value"].notna()
 
     if filters.get("topics"):
-        filtered = filtered[filtered["Topic"].isin(filters["topics"])]
+        mask &= long_df["Topic"].isin(filters["topics"])
 
     if filters.get("scales"):
-        filtered = filtered[filtered["Scale"].isin(filters["scales"])]
+        mask &= long_df["Scale"].isin(filters["scales"])
 
     if filters.get("indicator"):
-        filtered = filtered[filtered["Indicator"].eq(filters["indicator"])]
+        mask &= long_df["Indicator"].eq(filters["indicator"])
 
     if filters.get("countries"):
-        filtered = filtered[filtered["Country"].isin(filters["countries"])]
+        mask &= long_df["Country"].isin(filters["countries"])
 
     if not filters.get("include_aggregates", False):
-        filtered = filtered[~filtered["Is Aggregate"]]
+        mask &= ~long_df["Is Aggregate"]
 
     search = str(filters.get("search", "")).strip()
     if search:
         searchable_columns = [
             column
             for column in ["Country", "Indicator", "Topic", "Series Name", "Series Code", "FULL_DESCRIPTION"]
-            if column in filtered.columns
+            if column in long_df.columns
         ]
         pattern = re.escape(search)
-        mask = pd.Series(False, index=filtered.index)
+        search_mask = pd.Series(False, index=long_df.index)
         for column in searchable_columns:
-            mask = mask | filtered[column].astype("string").str.contains(pattern, case=False, na=False)
-        filtered = filtered[mask]
+            search_mask |= long_df[column].astype("string").str.contains(pattern, case=False, na=False)
+        mask &= search_mask
 
-    return filtered.dropna(subset=["Value"])
+    return long_df.loc[mask]
 
 
 def apply_context_filters(
