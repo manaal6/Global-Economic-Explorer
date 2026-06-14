@@ -382,7 +382,7 @@ def main() -> None:
             st.markdown("#### Global Country Ranking Table")
             st.dataframe(
                 format_ranking_table(ranking),
-                width="stretch",
+                use_container_width=True,
                 hide_index=True,
                 height=420,
             )
@@ -478,7 +478,7 @@ def main() -> None:
             anomalies = anomaly_detector(indicator_context_df, selected_indicator, limit=15)
             st.dataframe(
                 format_ranking_table(anomalies),
-                width="stretch",
+                use_container_width=True,
                 hide_index=True,
                 height=400,
             )
@@ -516,7 +516,7 @@ def main() -> None:
                 {"Check": "Time-series coverage", "Result": f"{profile['year_min']} to {profile['year_max']}"},
             ]
         )
-        st.dataframe(quality, width="stretch", hide_index=True)
+        st.dataframe(quality, use_container_width=True, hide_index=True)
 
         st.markdown("#### Filtered Long Format Preview")
         preview_cols = [
@@ -526,7 +526,7 @@ def main() -> None:
         ]
         st.dataframe(
             filtered_df[preview_cols].sort_values(["Country", "Indicator", "Year"]).head(1000),
-            width="stretch",
+            use_container_width=True,
             hide_index=True,
             height=460,
         )
