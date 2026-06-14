@@ -258,7 +258,7 @@ def render_sidebar_filters(long_df: pd.DataFrame) -> dict[str, object]:
 
     with st.sidebar:
         st.markdown("### Global Economic Explorer")
-        if st.button("Reset filters", width="stretch"):
+        if st.button("Reset filters", use_container_width=True):
             reset_filter_state()
             st.rerun()
 

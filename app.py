@@ -376,7 +376,7 @@ def main() -> None:
         )
         left, right = st.columns([1.45, 1])
         with left:
-            st.pyplot(primary_trend_fig, width="stretch")
+            st.pyplot(primary_trend_fig, use_container_width=True)
         with right:
             ranking = ranking_table(context_df, selected_indicator, selected_year, top_n, include_aggregates)
             st.markdown("#### Global Country Ranking Table")
@@ -391,7 +391,7 @@ def main() -> None:
                 data=ranking.to_csv(index=False).encode("utf-8"),
                 file_name=dataframe_download_name(f"ranking_{selected_indicator}_{selected_year}"),
                 mime="text/csv",
-                width="stretch",
+                use_container_width=True,
             )
 
         st.markdown("#### Insight Panel")
@@ -407,15 +407,15 @@ def main() -> None:
         )
         chart_a, chart_b = st.columns(2)
         with chart_a:
-            st.pyplot(indicator_category_pie(context_df), width="stretch")
+            st.pyplot(indicator_category_pie(context_df), use_container_width=True)
         with chart_b:
-            st.pyplot(indicator_histogram(filtered_df, selected_indicator), width="stretch")
+            st.pyplot(indicator_histogram(filtered_df, selected_indicator), use_container_width=True)
 
         chart_c, chart_d = st.columns(2)
         with chart_c:
-            st.pyplot(primary_trend_fig, width="stretch")
+            st.pyplot(primary_trend_fig, use_container_width=True)
         with chart_d:
-            st.pyplot(ranking_bar(context_df, selected_indicator, selected_year, top_n, include_aggregates), width="stretch")
+            st.pyplot(ranking_bar(context_df, selected_indicator, selected_year, top_n, include_aggregates), use_container_width=True)
 
         scatter_pairs = choose_scatter_pairs(context_df["Indicator"].dropna().unique())
         scatter_choice = st.radio(
@@ -427,22 +427,22 @@ def main() -> None:
         x_indicator, y_indicator = scatter_pairs[scatter_choice]
         st.pyplot(
             scatter_economics(context_df, x_indicator, y_indicator, selected_year, include_aggregates),
-            width="stretch",
+            use_container_width=True,
         )
 
         chart_e, chart_f = st.columns(2)
         with chart_e:
-            st.pyplot(box_plot_by_topic(context_df), width="stretch")
+            st.pyplot(box_plot_by_topic(context_df), use_container_width=True)
         with chart_f:
-            st.pyplot(correlation_heatmap(context_df), width="stretch")
+            st.pyplot(correlation_heatmap(context_df), use_container_width=True)
 
         chart_g, chart_h = st.columns(2)
         with chart_g:
-            st.pyplot(area_chart(filtered_df, selected_indicator), width="stretch")
+            st.pyplot(area_chart(filtered_df, selected_indicator), use_container_width=True)
         with chart_h:
-            st.pyplot(count_plot(context_df), width="stretch")
+            st.pyplot(count_plot(context_df), use_container_width=True)
 
-        st.pyplot(violin_plot(filtered_df, selected_indicator), width="stretch")
+        st.pyplot(violin_plot(filtered_df, selected_indicator), use_container_width=True)
 
     if active_view == "Advanced Analytics":
         primary_trend_fig = trend_line(filtered_df, selected_indicator)
@@ -465,13 +465,13 @@ def main() -> None:
                 ax_fc.legend()
                 ax_fc.grid(True, alpha=0.3)
                 plt.tight_layout()
-                st.pyplot(fig_fc, width="stretch")
+                st.pyplot(fig_fc, use_container_width=True)
                 plt.close(fig_fc)
             else:
                 st.info("No historical/forecast data available for current selection.")
 
             st.markdown("#### Economic Trend Comparison")
-            st.pyplot(primary_trend_fig, width="stretch")
+            st.pyplot(primary_trend_fig, use_container_width=True)
 
         with adv_right:
             st.markdown("#### Anomaly Detector")
@@ -490,7 +490,7 @@ def main() -> None:
                 options=all_indicators,
                 default=all_indicators[: min(6, len(all_indicators))],
             )
-            st.pyplot(correlation_heatmap(context_df, selected_corr), width="stretch")
+            st.pyplot(correlation_heatmap(context_df, selected_corr), use_container_width=True)
 
     if active_view == "Data Quality":
         st.subheader("Dataset Engineering Profile")
@@ -536,7 +536,7 @@ def main() -> None:
             data=filtered_df[preview_cols].to_csv(index=False).encode("utf-8"),
             file_name=dataframe_download_name("filtered_weo_long_format"),
             mime="text/csv",
-            width="stretch",
+            use_container_width=True,
         )
 
 
