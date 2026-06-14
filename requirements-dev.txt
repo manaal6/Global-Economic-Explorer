@@ -1,0 +1,8 @@
+# Extra packages only needed for the analysis.ipynb notebook (local work).
+# Do NOT include these in the deployed Space's requirements.txt -
+# jupyter/ipykernel pull in a huge dependency tree and slow the Space's
+# build and cold-start time considerably without speeding up the app itself.
+-r requirements.txt
+openpyxl>=3.1
+jupyter>=1.0
+ipykernel>=6.0

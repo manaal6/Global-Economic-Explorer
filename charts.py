@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import streamlit as st
 
 
 PALETTE = [
@@ -84,6 +85,7 @@ def _top_categories(df: pd.DataFrame, column: str, n: int = 12) -> list[str]:
     return df[column].dropna().value_counts().head(n).index.tolist()
 
 
+@st.cache_data(show_spinner=False)
 def _series_count_frame(df: pd.DataFrame, group_col: str) -> pd.DataFrame:
     series_col = "Series Code" if "Series Code" in df.columns else "Indicator"
     return (
@@ -130,16 +132,23 @@ def indicator_histogram(df: pd.DataFrame, indicator: str) -> plt.Figure:
     return _finalize(ax, f"Distribution of {indicator}", "Value", "Observation count")
 
 
-def trend_line(df: pd.DataFrame, indicator: str) -> plt.Figure:
+@st.cache_data(show_spinner=False)
+def _trend_grouped(df: pd.DataFrame, indicator: str) -> pd.DataFrame:
     data = df[df["Indicator"].eq(indicator)].dropna(subset=["Value", "Year"])
     if data.empty:
-        return empty_figure("No time-series data available for the selected trend.")
-
-    grouped = (
+        return data
+    return (
         data.groupby(["Year", "Country", "Year Type"], observed=True, as_index=False)["Value"]
         .mean()
         .sort_values("Year")
     )
+
+
+def trend_line(df: pd.DataFrame, indicator: str) -> plt.Figure:
+    grouped = _trend_grouped(df, indicator)
+    if grouped.empty:
+        return empty_figure("No time-series data available for the selected trend.")
+
     fig, ax = plt.subplots(figsize=(10, 5.2))
     sns.lineplot(
         data=grouped,
@@ -156,6 +165,7 @@ def trend_line(df: pd.DataFrame, indicator: str) -> plt.Figure:
     return _finalize(ax, f"Economic Trend Comparison: {indicator}", "Year", "Value")
 
 
+@st.cache_data(show_spinner=False)
 def ranking_table(
     df: pd.DataFrame,
     indicator: str,
@@ -195,6 +205,28 @@ def ranking_bar(
     return _finalize(ax, f"Top {len(table)} Countries: {indicator} ({selected_year})", "Value", "")
 
 
+@st.cache_data(show_spinner=False)
+def _scatter_pivot(
+    df: pd.DataFrame,
+    x_indicator: str,
+    y_indicator: str,
+    selected_year: int,
+    include_aggregates: bool,
+) -> pd.DataFrame:
+    data = df[
+        df["Year"].eq(selected_year)
+        & df["Indicator"].isin([x_indicator, y_indicator])
+        & df["Value"].notna()
+    ].copy()
+    if not include_aggregates and "Is Aggregate" in data.columns:
+        data = data[~data["Is Aggregate"]]
+    if data.empty:
+        return data
+
+    pivot = data.pivot_table(index="Country", columns="Indicator", values="Value", aggfunc="mean", observed=True)
+    return pivot.dropna(subset=[x_indicator, y_indicator]).reset_index()
+
+
 def scatter_economics(
     df: pd.DataFrame,
     x_indicator: str,
@@ -205,25 +237,14 @@ def scatter_economics(
     if not x_indicator or not y_indicator or x_indicator == y_indicator:
         return empty_figure("Choose two different economic indicators for the scatter plot.")
 
-    data = df[
-        df["Year"].eq(selected_year)
-        & df["Indicator"].isin([x_indicator, y_indicator])
-        & df["Value"].notna()
-    ].copy()
-    if not include_aggregates and "Is Aggregate" in data.columns:
-        data = data[~data["Is Aggregate"]]
-    if data.empty:
-        return empty_figure("No paired values available for the selected year.")
-
-    pivot = data.pivot_table(index="Country", columns="Indicator", values="Value", aggfunc="mean", observed=True)
-    pivot = pivot.dropna(subset=[x_indicator, y_indicator]).reset_index()
+    pivot = _scatter_pivot(df, x_indicator, y_indicator, selected_year, include_aggregates)
     if pivot.empty:
-        return empty_figure("The selected indicators do not overlap for this year.")
+        return empty_figure("No paired values available for the selected year.")
 
     fig, ax = plt.subplots(figsize=(8.5, 5.4))
     sns.scatterplot(data=pivot, x=x_indicator, y=y_indicator, s=70, color=ACCENT, edgecolor="white", ax=ax)
     if len(pivot) >= 3:
-        sns.regplot(data=pivot, x=x_indicator, y=y_indicator, scatter=False, color="#334155", ax=ax)
+        sns.regplot(data=pivot, x=x_indicator, y=y_indicator, scatter=False, ci=None, color="#334155", ax=ax)
 
     for _, row in pivot.nlargest(min(5, len(pivot)), y_indicator).iterrows():
         ax.annotate(row["Country"], (row[x_indicator], row[y_indicator]), fontsize=8, xytext=(4, 4), textcoords="offset points")
@@ -244,10 +265,11 @@ def box_plot_by_topic(df: pd.DataFrame) -> plt.Figure:
     return _finalize(ax, "Economic Value Distribution by Topic", "Topic", "Value")
 
 
-def correlation_heatmap(df: pd.DataFrame, selected_indicators: Iterable[str] | None = None) -> plt.Figure:
-    data = df.dropna(subset=["Value", "Country", "Indicator", "Year"]).copy()
+@st.cache_data(show_spinner=False)
+def _correlation_matrix(df: pd.DataFrame, selected_indicators: tuple[str, ...] | None) -> pd.DataFrame:
+    data = df.dropna(subset=["Value", "Country", "Indicator", "Year"])
     if data.empty:
-        return empty_figure("No observations available for correlation analysis.")
+        return pd.DataFrame()
 
     if selected_indicators:
         data = data[data["Indicator"].isin(list(selected_indicators))]
@@ -259,9 +281,17 @@ def correlation_heatmap(df: pd.DataFrame, selected_indicators: Iterable[str] | N
     pivot = data.pivot_table(index=["Country", "Year"], columns="Indicator", values="Value", aggfunc="mean", observed=True)
     pivot = pivot.dropna(axis=1, thresh=max(5, int(len(pivot) * 0.08)))
     if pivot.shape[1] < 2:
+        return pd.DataFrame()
+
+    return pivot.corr(numeric_only=True)
+
+
+def correlation_heatmap(df: pd.DataFrame, selected_indicators: Iterable[str] | None = None) -> plt.Figure:
+    indicators_key = tuple(sorted(selected_indicators)) if selected_indicators else None
+    corr = _correlation_matrix(df, indicators_key)
+    if corr.empty:
         return empty_figure("Select at least two indicators with overlapping country-year values.")
 
-    corr = pivot.corr(numeric_only=True)
     fig, ax = plt.subplots(figsize=(9.5, 7.0))
     sns.heatmap(
         corr,
@@ -284,10 +314,11 @@ def correlation_heatmap(df: pd.DataFrame, selected_indicators: Iterable[str] | N
     return fig
 
 
-def area_chart(df: pd.DataFrame, indicator: str) -> plt.Figure:
+@st.cache_data(show_spinner=False)
+def _area_pivot(df: pd.DataFrame, indicator: str) -> pd.DataFrame:
     data = df[df["Indicator"].eq(indicator)].dropna(subset=["Value", "Year", "Country"])
     if data.empty:
-        return empty_figure("No area trend data available.")
+        return data
 
     latest_year = int(data["Year"].max())
     top_countries = (
@@ -297,7 +328,11 @@ def area_chart(df: pd.DataFrame, indicator: str) -> plt.Figure:
         .tolist()
     )
     data = data[data["Country"].isin(top_countries)]
-    pivot = data.pivot_table(index="Year", columns="Country", values="Value", aggfunc="mean", observed=True).sort_index()
+    return data.pivot_table(index="Year", columns="Country", values="Value", aggfunc="mean", observed=True).sort_index()
+
+
+def area_chart(df: pd.DataFrame, indicator: str) -> plt.Figure:
+    pivot = _area_pivot(df, indicator)
     if pivot.empty:
         return empty_figure("No cumulative trend data available.")
 
@@ -334,6 +369,7 @@ def violin_plot(df: pd.DataFrame, indicator: str) -> plt.Figure:
     return _finalize(ax, f"Historical vs Forecast Distribution: {indicator}", "Observation type", "Value")
 
 
+@st.cache_data(show_spinner=False)
 def anomaly_detector(df: pd.DataFrame, indicator: str, limit: int = 15) -> pd.DataFrame:
     data = df[df["Indicator"].eq(indicator)].dropna(subset=["Value"]).copy()
     if data.empty:
@@ -356,6 +392,7 @@ def anomaly_detector(df: pd.DataFrame, indicator: str, limit: int = 15) -> pd.Da
     )
 
 
+@st.cache_data(show_spinner=False)
 def calculate_kpis(
     visible_df: pd.DataFrame,
     context_df: pd.DataFrame,
@@ -402,6 +439,7 @@ def calculate_kpis(
     }
 
 
+@st.cache_data(show_spinner=False)
 def generate_insights(
     df: pd.DataFrame,
     indicator: str,
