@@ -149,20 +149,35 @@ def trend_line(df: pd.DataFrame, indicator: str) -> plt.Figure:
     if grouped.empty:
         return empty_figure("No time-series data available for the selected trend.")
 
+    unique_countries = grouped["Country"].unique()
+    is_limited = False
+    if len(unique_countries) > 10:
+        is_limited = True
+        top_countries = (
+            grouped.groupby("Country", observed=True)["Value"]
+            .mean()
+            .nlargest(10)
+            .index
+        )
+        grouped = grouped[grouped["Country"].isin(top_countries)]
+
     fig, ax = plt.subplots(figsize=(10, 5.2))
     sns.lineplot(
         data=grouped,
         x="Year",
         y="Value",
         hue="Country",
-        style="Year Type",
         markers=False,
         linewidth=2.2,
         ax=ax,
     )
     ax.axvspan(2026, grouped["Year"].max(), color="#F1F5F9", alpha=0.7, label="Projection window")
     ax.legend(loc="best", fontsize=8, frameon=True)
-    return _finalize(ax, f"Economic Trend Comparison: {indicator}", "Year", "Value")
+    
+    title = f"Economic Trend Comparison: {indicator}"
+    if is_limited:
+        title += " (Top 10 Countries Shown)"
+    return _finalize(ax, title, "Year", "Value")
 
 
 @st.cache_data(show_spinner=False)
